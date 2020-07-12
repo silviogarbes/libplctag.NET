@@ -7,6 +7,7 @@ namespace CSharpDotNetCore
         static void Main(string[] args)
         {
             ExampleAsync.Run();
+            ExampleAsync.SyncAsyncComparison();
             ExampleRW.Run();
             ExampleArray.Run();
             //NativeImportExample.Run();
