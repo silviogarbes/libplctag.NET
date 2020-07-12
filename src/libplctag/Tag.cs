@@ -241,12 +241,12 @@ namespace libplctag
         public float GetFloat32(int offset) => plctag.get_float32(pointer, offset);
         public void SetFloat32(int offset, float value) => plctag.set_float32(pointer, offset, value);
 
-        public event EventHandler<LibPlcTagEventArgs> ReadStarted;
-        public event EventHandler<LibPlcTagEventArgs> ReadCompleted;
-        public event EventHandler<LibPlcTagEventArgs> WriteStarted;
-        public event EventHandler<LibPlcTagEventArgs> WriteCompleted;
-        public event EventHandler<LibPlcTagEventArgs> Aborted;
-        public event EventHandler<LibPlcTagEventArgs> Destroyed;
+        event EventHandler<LibPlcTagEventArgs> ReadStarted;
+        event EventHandler<LibPlcTagEventArgs> ReadCompleted;
+        event EventHandler<LibPlcTagEventArgs> WriteStarted;
+        event EventHandler<LibPlcTagEventArgs> WriteCompleted;
+        event EventHandler<LibPlcTagEventArgs> Aborted;
+        event EventHandler<LibPlcTagEventArgs> Destroyed;
 
         protected virtual void OnReadStarted(LibPlcTagEventArgs e)
         {
