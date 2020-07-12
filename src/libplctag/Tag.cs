@@ -103,9 +103,14 @@ namespace libplctag
 
         public void Dispose() => plctag.destroy(pointer);
 
-        public void Abort() => plctag.abort(pointer);
+        void Abort() => plctag.abort(pointer);
 
-        public void Read(int millisecondTimeout) => plctag.read(pointer, millisecondTimeout);
+        public void Read(int millisecondTimeout)
+        {
+            if (millisecondTimeout <= 0)
+                throw new ArgumentOutOfRangeException(nameof(millisecondTimeout), "Must be greater than 0 for a synchronous read");
+            plctag.read(pointer, millisecondTimeout);
+        }
 
         public Task ReadAsync(CancellationToken cancellationToken = default)
         {
@@ -145,13 +150,18 @@ namespace libplctag
 
             using (cancellationToken.Register(() => Abort()))
             {
-                Read(0);
+                plctag.read(pointer, 0);
                 return awaitable.Task;
             }
 
         }
 
-        public void Write(int millisecondTimeout) => plctag.write(pointer, millisecondTimeout);
+        public void Write(int millisecondTimeout)
+        {
+            if (millisecondTimeout <= 0)
+                throw new ArgumentOutOfRangeException(nameof(millisecondTimeout), "Must be greater than 0 for a synchronous write");
+            plctag.write(pointer, millisecondTimeout);
+        }
 
         public Task WriteAsync(CancellationToken cancellationToken = default)
         {
@@ -191,7 +201,7 @@ namespace libplctag
 
             using (cancellationToken.Register(() => Abort()))
             {
-                Write(0);
+                plctag.write(pointer, 0);
                 return awaitable.Task;
             }
 
