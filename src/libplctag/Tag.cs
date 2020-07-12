@@ -129,12 +129,8 @@ namespace libplctag
             setCanceled = delegate (object sender, LibPlcTagEventArgs e)
             {
                 removeEventHandlers();
-                // Abort/Destroy callbacks could be triggered by the public Abort() or Destroy() methods
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    awaitable.SetCanceled();
-                    cancellationToken.ThrowIfCancellationRequested();
-                }
+                awaitable.SetCanceled();
+                cancellationToken.ThrowIfCancellationRequested();
             };
 
             void removeEventHandlers()
@@ -180,12 +176,8 @@ namespace libplctag
             setCanceled = delegate (object sender, LibPlcTagEventArgs e)
             {
                 removeEventHandlers();
-                // Abort/Destroy callbacks could be triggered by the public Abort() or Destroy() methods
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    awaitable.SetCanceled();
-                    cancellationToken.ThrowIfCancellationRequested();
-                }
+                awaitable.SetCanceled();
+                cancellationToken.ThrowIfCancellationRequested();
             };
 
             void removeEventHandlers()
