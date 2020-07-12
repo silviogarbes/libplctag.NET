@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
 using libplctag.NativeImport;
 
 namespace libplctag
@@ -105,7 +107,95 @@ namespace libplctag
 
         public void Read(int millisecondTimeout) => plctag.read(pointer, millisecondTimeout);
 
+        public Task ReadAsync(CancellationToken cancellationToken = default)
+        {
+
+            var awaitable = new TaskCompletionSource<object>();
+
+            EventHandler<LibPlcTagEventArgs> setResult = null;
+            EventHandler<LibPlcTagEventArgs> setCanceled = null;
+
+            setResult = delegate (object sender, LibPlcTagEventArgs e)
+            {
+                removeEventHandlers();
+                awaitable.SetResult(default);
+            };
+
+            setCanceled = delegate (object sender, LibPlcTagEventArgs e)
+            {
+                removeEventHandlers();
+                // Abort/Destroy callbacks could be triggered by the public Abort() or Destroy() methods
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    awaitable.SetCanceled();
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+            };
+
+            void removeEventHandlers()
+            {
+                ReadCompleted -= setResult;
+                Aborted -= setCanceled;
+                Destroyed -= setCanceled;
+            }
+
+            ReadCompleted += setResult;
+            Aborted += setCanceled;
+            Destroyed += setCanceled;
+
+            using (cancellationToken.Register(() => Abort()))
+            {
+                Read(0);
+                return awaitable.Task;
+            }
+
+        }
+
         public void Write(int millisecondTimeout) => plctag.write(pointer, millisecondTimeout);
+
+        public Task WriteAsync(CancellationToken cancellationToken = default)
+        {
+
+            var awaitable = new TaskCompletionSource<object>();
+
+            EventHandler<LibPlcTagEventArgs> setResult = null;
+            EventHandler<LibPlcTagEventArgs> setCanceled = null;
+
+            setResult = delegate (object sender, LibPlcTagEventArgs e)
+            {
+                removeEventHandlers();
+                awaitable.SetResult(default);
+            };
+
+            setCanceled = delegate (object sender, LibPlcTagEventArgs e)
+            {
+                removeEventHandlers();
+                // Abort/Destroy callbacks could be triggered by the public Abort() or Destroy() methods
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    awaitable.SetCanceled();
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+            };
+
+            void removeEventHandlers()
+            {
+                WriteCompleted -= setResult;
+                Aborted -= setCanceled;
+                Destroyed -= setCanceled;
+            }
+
+            WriteCompleted += setResult;
+            Aborted += setCanceled;
+            Destroyed += setCanceled;
+
+            using (cancellationToken.Register(() => Abort()))
+            {
+                Write(0);
+                return awaitable.Task;
+            }
+
+        }
 
         public int GetSize() => plctag.get_size(pointer);
 
