@@ -22,5 +22,26 @@ namespace libplctag
                 throw new NotImplementedException();
         }
 
+        public static event EventHandler<LibPlcTagLogEventArgs> LogEventOccurred;
+
+        static void OnLogEventOccurred(LibPlcTagLogEventArgs e)
+        {
+            EventHandler<LibPlcTagLogEventArgs> handler = LogEventOccurred;
+            handler?.Invoke(typeof(LibPlcTag), e);
+        }
+
+        static LibPlcTag()
+        {
+
+            Action<int, int, string> callback = delegate (int tagPointer, int debugLevel, string message)
+            {
+                OnLogEventOccurred(new LibPlcTagLogEventArgs() { })
+
+            };
+
+            plctag.register_callback(LIB_ATTRIBUTE_POINTER, new plctag.log_callback_func(callback));
+
+        }
+
     }
 }
