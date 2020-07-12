@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -62,10 +63,20 @@ namespace libplctag
             var attributeString = GetAttributeString(protocol, gateway, path, cpuType, elementSize, elementCount, name, debugLevel, readCacheMillisecondDuration, useConnectedMessaging);
 
             pointer = plctag.create(attributeString, millisecondTimeout);
+            
+            ReadCompleted += ReadCompletedHandler;
+            Aborted += ReadAbortedOrDestroyedHandler;
+            Destroyed += ReadAbortedOrDestroyedHandler;
 
-            SetUpCallback();
+            WriteCompleted += WriteCompletedHandler;
+            Aborted += WriteAbortedOrDestroyedHandler;
+            Destroyed += WriteAbortedOrDestroyedHandler;
 
+            callback_Func = new plctag.callback_func(EventCallback);
+            plctag.register_callback(pointer, callback_Func);
         }
+
+        plctag.callback_func callback_Func;
 
         ~Tag()
         {
@@ -112,44 +123,52 @@ namespace libplctag
             plctag.read(pointer, millisecondTimeout);
         }
 
+        readonly ConcurrentQueue<TaskCompletionSource<object>> readAsyncTaskCompletionSources = new ConcurrentQueue<TaskCompletionSource<object>>();
+
         public Task ReadAsync(CancellationToken cancellationToken = default)
         {
 
-            var awaitable = new TaskCompletionSource<object>();
+            var tcs = new TaskCompletionSource<object>();
+            readAsyncTaskCompletionSources.Enqueue(tcs);
 
-            EventHandler<LibPlcTagEventArgs> setResult = null;
-            EventHandler<LibPlcTagEventArgs> setCanceled = null;
-
-            setResult = delegate (object sender, LibPlcTagEventArgs e)
+            using (cancellationToken.Register(() =>
             {
-                removeEventHandlers();
-                awaitable.SetResult(default);
-            };
-
-            setCanceled = delegate (object sender, LibPlcTagEventArgs e)
-            {
-                removeEventHandlers();
-                awaitable.SetCanceled();
+                tcs.SetCanceled();
                 cancellationToken.ThrowIfCancellationRequested();
-            };
-
-            void removeEventHandlers()
-            {
-                ReadCompleted -= setResult;
-                Aborted -= setCanceled;
-                Destroyed -= setCanceled;
-            }
-
-            ReadCompleted += setResult;
-            Aborted += setCanceled;
-            Destroyed += setCanceled;
-
-            using (cancellationToken.Register(() => Abort()))
+            }))
             {
                 plctag.read(pointer, 0);
-                return awaitable.Task;
+                return tcs.Task;
             }
 
+        }
+
+        void ReadCompletedHandler(object sender, LibPlcTagEventArgs e)
+        {
+            foreach (var tcs in readAsyncTaskCompletionSources)
+            {
+                tcs.TrySetResult(default);
+            }
+            removeReadAsyncTaskCompletionSources();
+        }
+
+        void removeReadAsyncTaskCompletionSources()
+        {
+            while (readAsyncTaskCompletionSources.TryDequeue(out TaskCompletionSource<object> result))
+            {
+                // If it wasn't one of the completed tasks, add it back to the queue for removal later
+                if (!result.Task.IsCompleted)
+                    readAsyncTaskCompletionSources.Enqueue(result);
+            }
+        }
+
+        void ReadAbortedOrDestroyedHandler(object sender, LibPlcTagEventArgs e)
+        {
+            foreach (var tcs in readAsyncTaskCompletionSources)
+            {
+                tcs.TrySetCanceled();
+            }
+            removeReadAsyncTaskCompletionSources();
         }
 
         public void Write(int millisecondTimeout)
@@ -159,44 +178,52 @@ namespace libplctag
             plctag.write(pointer, millisecondTimeout);
         }
 
+        readonly ConcurrentQueue<TaskCompletionSource<object>> writeAsyncTaskCompletionSources = new ConcurrentQueue<TaskCompletionSource<object>>();
+
         public Task WriteAsync(CancellationToken cancellationToken = default)
         {
 
-            var awaitable = new TaskCompletionSource<object>();
+            var tcs = new TaskCompletionSource<object>();
+            writeAsyncTaskCompletionSources.Enqueue(tcs);
 
-            EventHandler<LibPlcTagEventArgs> setResult = null;
-            EventHandler<LibPlcTagEventArgs> setCanceled = null;
-
-            setResult = delegate (object sender, LibPlcTagEventArgs e)
+            using (cancellationToken.Register(() =>
             {
-                removeEventHandlers();
-                awaitable.SetResult(default);
-            };
-
-            setCanceled = delegate (object sender, LibPlcTagEventArgs e)
-            {
-                removeEventHandlers();
-                awaitable.SetCanceled();
+                tcs.SetCanceled();
                 cancellationToken.ThrowIfCancellationRequested();
-            };
-
-            void removeEventHandlers()
-            {
-                WriteCompleted -= setResult;
-                Aborted -= setCanceled;
-                Destroyed -= setCanceled;
-            }
-
-            WriteCompleted += setResult;
-            Aborted += setCanceled;
-            Destroyed += setCanceled;
-
-            using (cancellationToken.Register(() => Abort()))
+            }))
             {
                 plctag.write(pointer, 0);
-                return awaitable.Task;
+                return tcs.Task;
             }
 
+        }
+
+        void WriteCompletedHandler(object sender, LibPlcTagEventArgs e)
+        {
+            foreach (var tcs in writeAsyncTaskCompletionSources)
+            {
+                tcs.TrySetResult(default);
+            }
+            removeWriteAsyncTaskCompletionSources();
+        }
+
+        void removeWriteAsyncTaskCompletionSources()
+        {
+            while (writeAsyncTaskCompletionSources.TryDequeue(out TaskCompletionSource<object> result))
+            {
+                // If it wasn't one of the completed tasks, add it back to the queue for removal later
+                if (!result.Task.IsCompleted)
+                    writeAsyncTaskCompletionSources.Enqueue(result);
+            }
+        }
+
+        void WriteAbortedOrDestroyedHandler(object sender, LibPlcTagEventArgs e)
+        {
+            foreach (var tcs in writeAsyncTaskCompletionSources)
+            {
+                tcs.TrySetCanceled();
+            }
+            removeWriteAsyncTaskCompletionSources();
         }
 
         public int GetSize() => plctag.get_size(pointer);
@@ -276,12 +303,11 @@ namespace libplctag
             handler?.Invoke(this, e);
         }
 
-        void SetUpCallback()
+        void EventCallback(int tagPointer, int eventCode, int statusCode)
         {
-
-            Action<int, int, int> callback = delegate (int tagPointer, int eventCode, int statusCode)
+            // Need to run this asynchronously so as not to block the C callback
+            Task.Run(() =>
             {
-
                 switch ((Event)eventCode)
                 {
                     case Event.ReadCompleted:
@@ -305,11 +331,7 @@ namespace libplctag
                     default:
                         throw new NotImplementedException();
                 }
-
-            };
-
-            plctag.register_callback(pointer, new plctag.callback_func(callback));
-
+            });
         }
 
     }
