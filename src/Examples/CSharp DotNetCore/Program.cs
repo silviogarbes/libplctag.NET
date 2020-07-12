@@ -6,6 +6,7 @@ namespace CSharpDotNetCore
     {
         static void Main(string[] args)
         {
+            ExampleAsync.Run();
             ExampleRW.Run();
             ExampleArray.Run();
             //NativeImportExample.Run();
