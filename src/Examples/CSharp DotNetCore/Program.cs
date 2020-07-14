@@ -7,8 +7,8 @@ namespace CSharpDotNetCore
     {
         static async Task Main(string[] args)
         {
-            await ExampleAsync.Run();
-            await ExampleAsync.SyncAsyncComparison();
+            //ExampleAsync.Run();
+            ExampleAsync.SyncAsyncComparison();
             //ExampleRW.Run();
             //ExampleArray.Run();
             //NativeImportExample.Run();

@@ -123,13 +123,13 @@ namespace libplctag
             plctag.read(pointer, millisecondTimeout);
         }
 
-        readonly ConcurrentQueue<TaskCompletionSource<object>> readAsyncTaskCompletionSources = new ConcurrentQueue<TaskCompletionSource<object>>();
+        readonly ConcurrentDictionary<int, TaskCompletionSource<object>> readAsyncTaskCompletionSources = new ConcurrentDictionary<int, TaskCompletionSource<object>>();
 
         public Task ReadAsync(CancellationToken cancellationToken = default)
         {
 
             var tcs = new TaskCompletionSource<object>();
-            readAsyncTaskCompletionSources.Enqueue(tcs);
+            readAsyncTaskCompletionSources.TryAdd(tcs.GetHashCode(), tcs);
 
             using (cancellationToken.Register(() =>
             {
@@ -145,30 +145,20 @@ namespace libplctag
 
         void ReadCompletedHandler(object sender, LibPlcTagEventArgs e)
         {
-            foreach (var tcs in readAsyncTaskCompletionSources)
+            foreach (var tcsHash in readAsyncTaskCompletionSources.Keys)
             {
-                tcs.TrySetResult(default);
-            }
-            removeReadAsyncTaskCompletionSources();
-        }
-
-        void removeReadAsyncTaskCompletionSources()
-        {
-            while (readAsyncTaskCompletionSources.TryDequeue(out TaskCompletionSource<object> result))
-            {
-                // If it wasn't one of the completed tasks, add it back to the queue for removal later
-                if (!result.Task.IsCompleted)
-                    readAsyncTaskCompletionSources.Enqueue(result);
+                if(readAsyncTaskCompletionSources.TryRemove(tcsHash, out TaskCompletionSource<object> tcs))
+                    tcs.SetResult(null);
             }
         }
 
         void ReadAbortedOrDestroyedHandler(object sender, LibPlcTagEventArgs e)
         {
-            foreach (var tcs in readAsyncTaskCompletionSources)
+            foreach (var tcsHash in readAsyncTaskCompletionSources.Keys)
             {
-                tcs.TrySetCanceled();
+                if(readAsyncTaskCompletionSources.TryRemove(tcsHash, out TaskCompletionSource<object> tcs))
+                    tcs.SetCanceled();
             }
-            removeReadAsyncTaskCompletionSources();
         }
 
         public void Write(int millisecondTimeout)
@@ -178,13 +168,13 @@ namespace libplctag
             plctag.write(pointer, millisecondTimeout);
         }
 
-        readonly ConcurrentQueue<TaskCompletionSource<object>> writeAsyncTaskCompletionSources = new ConcurrentQueue<TaskCompletionSource<object>>();
+        readonly ConcurrentDictionary<int, TaskCompletionSource<object>> writeAsyncTaskCompletionSources = new ConcurrentDictionary<int, TaskCompletionSource<object>>();
 
         public Task WriteAsync(CancellationToken cancellationToken = default)
         {
 
             var tcs = new TaskCompletionSource<object>();
-            writeAsyncTaskCompletionSources.Enqueue(tcs);
+            readAsyncTaskCompletionSources.TryAdd(tcs.GetHashCode(), tcs);
 
             using (cancellationToken.Register(() =>
             {
@@ -200,30 +190,20 @@ namespace libplctag
 
         void WriteCompletedHandler(object sender, LibPlcTagEventArgs e)
         {
-            foreach (var tcs in writeAsyncTaskCompletionSources)
+            foreach (var tcsHash in readAsyncTaskCompletionSources.Keys)
             {
-                tcs.TrySetResult(default);
-            }
-            removeWriteAsyncTaskCompletionSources();
-        }
-
-        void removeWriteAsyncTaskCompletionSources()
-        {
-            while (writeAsyncTaskCompletionSources.TryDequeue(out TaskCompletionSource<object> result))
-            {
-                // If it wasn't one of the completed tasks, add it back to the queue for removal later
-                if (!result.Task.IsCompleted)
-                    writeAsyncTaskCompletionSources.Enqueue(result);
+                if (readAsyncTaskCompletionSources.TryRemove(tcsHash, out TaskCompletionSource<object> tcs))
+                    tcs.SetResult(null);
             }
         }
 
         void WriteAbortedOrDestroyedHandler(object sender, LibPlcTagEventArgs e)
         {
-            foreach (var tcs in writeAsyncTaskCompletionSources)
+            foreach (var tcsHash in readAsyncTaskCompletionSources.Keys)
             {
-                tcs.TrySetCanceled();
+                if (readAsyncTaskCompletionSources.TryRemove(tcsHash, out TaskCompletionSource<object> tcs))
+                    tcs.SetCanceled();
             }
-            removeWriteAsyncTaskCompletionSources();
         }
 
         public int GetSize() => plctag.get_size(pointer);
