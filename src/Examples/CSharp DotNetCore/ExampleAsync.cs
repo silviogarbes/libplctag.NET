@@ -3,12 +3,13 @@ using System;
 using System.Diagnostics;
 using System.Net;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace CSharpDotNetCore
 {
     class ExampleAsync
     {
-        public static async void Run()
+        public static async Task Run()
         {
             var myTag = new Tag(IPAddress.Parse("10.10.10.10"), "1,0", CpuType.Logix, DataType.DINT, "PROGRAM:SomeProgram.SomeDINT", 5000);
 
@@ -33,7 +34,7 @@ namespace CSharpDotNetCore
         }
 
 
-        public static async void SyncAsyncComparison()
+        public static async Task SyncAsyncComparison()
         {
 
             Console.WriteLine("This method measures the speed of synchronous vs asynchronous reads");
@@ -44,11 +45,11 @@ namespace CSharpDotNetCore
             if (myTag.GetStatus() != StatusCode.StatusOk)
                 throw new LibPlcTagException(myTag.GetStatus());
 
-            int repetitions = 100;
+            int repetitions = 1000;
 
             Console.Write($"Running {repetitions} Read() calls...");
             var syncStopWatch = Stopwatch.StartNew();
-            for (int ii = 0; ii < 100; ii++)
+            for (int ii = 0; ii < repetitions; ii++)
             {
                 // We know that it takes less than 100ms per read, so it will return as soon as it is finished
                 myTag.Read(100);
@@ -59,7 +60,7 @@ namespace CSharpDotNetCore
 
             Console.Write($"Running {repetitions} ReadAsync() calls...");
             var asyncStopWatch = Stopwatch.StartNew();
-            for (int ii = 0; ii < 100; ii++)
+            for (int ii = 0; ii < repetitions; ii++)
             {
                 await myTag.ReadAsync();
             }

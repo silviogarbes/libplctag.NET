@@ -1,15 +1,16 @@
 ﻿using System;
+using System.Threading.Tasks;
 
 namespace CSharpDotNetCore
 {
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
-            ExampleAsync.Run();
-            ExampleAsync.SyncAsyncComparison();
-            ExampleRW.Run();
-            ExampleArray.Run();
+            await ExampleAsync.Run();
+            await ExampleAsync.SyncAsyncComparison();
+            //ExampleRW.Run();
+            //ExampleArray.Run();
             //NativeImportExample.Run();
             //NativeImportExample.RunCallbackExample();
             //NativeImportExample.RunLoggerExample();
