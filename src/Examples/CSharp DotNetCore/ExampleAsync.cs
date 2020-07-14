@@ -13,19 +13,19 @@ namespace CSharpDotNetCore
         {
             var myTag = new Tag(IPAddress.Parse("10.10.10.10"), "1,0", CpuType.Logix, DataType.DINT, "PROGRAM:SomeProgram.SomeDINT", 5000);
 
-            while (myTag.GetStatus() == StatusCode.StatusPending)
+            while (myTag.GetStatus() == Status.Pending)
                 Thread.Sleep(100);
-            if (myTag.GetStatus() != StatusCode.StatusOk)
+            if (myTag.GetStatus() != Status.Ok)
                 throw new LibPlcTagException(myTag.GetStatus());
 
             myTag.SetInt32(0, 3737);
 
             await myTag.WriteAsync();
-            if (myTag.GetStatus() != StatusCode.StatusOk)
+            if (myTag.GetStatus() != Status.Ok)
                 throw new LibPlcTagException(myTag.GetStatus());
 
             await myTag.ReadAsync();
-            if (myTag.GetStatus() != StatusCode.StatusOk)
+            if (myTag.GetStatus() != Status.Ok)
                 throw new LibPlcTagException(myTag.GetStatus());
 
             int myDint = myTag.GetInt32(0);
@@ -40,9 +40,9 @@ namespace CSharpDotNetCore
             Console.WriteLine("This method measures the speed of synchronous vs asynchronous reads");
             var myTag = new Tag(IPAddress.Parse("192.168.0.10"), "1,0", CpuType.Logix, DataType.DINT, "Dummy", 5000);
 
-            while (myTag.GetStatus() == StatusCode.StatusPending)
+            while (myTag.GetStatus() == Status.Pending)
                 Thread.Sleep(100);
-            if (myTag.GetStatus() != StatusCode.StatusOk)
+            if (myTag.GetStatus() != Status.Ok)
                 throw new LibPlcTagException(myTag.GetStatus());
 
             int repetitions = 100;
