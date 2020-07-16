@@ -63,7 +63,13 @@ namespace libplctag
             var attributeString = GetAttributeString(protocol, gateway, path, cpuType, elementSize, elementCount, name, debugLevel, readCacheMillisecondDuration, useConnectedMessaging);
 
             pointer = plctag.create(attributeString, millisecondTimeout);
-            
+
+            SetUpEvents();
+
+        }
+
+        void SetUpEvents()
+        {
             ReadCompleted += ReadCompletedHandler;
             Aborted += ReadAbortedOrDestroyedHandler;
             Destroyed += ReadAbortedOrDestroyedHandler;
@@ -72,11 +78,11 @@ namespace libplctag
             Aborted += WriteAbortedOrDestroyedHandler;
             Destroyed += WriteAbortedOrDestroyedHandler;
 
-            callback_Func = new plctag.callback_func(EventCallback);
-            plctag.register_callback(pointer, callback_Func);
+            plctag.register_callback(pointer, coreLibEventCallback);
+            if (GetStatus() != Status.Ok)
+                throw new LibPlcTagException(GetStatus());
         }
 
-        plctag.callback_func callback_Func;
 
         ~Tag()
         {
@@ -123,19 +129,15 @@ namespace libplctag
             plctag.read(pointer, millisecondTimeout);
         }
 
-        readonly ConcurrentDictionary<int, TaskCompletionSource<object>> readAsyncTaskCompletionSources = new ConcurrentDictionary<int, TaskCompletionSource<object>>();
-
+        readonly ConcurrentDictionary<int, TaskCompletionSource<object>> readTasks = new ConcurrentDictionary<int, TaskCompletionSource<object>>();
+        
         public Task ReadAsync(CancellationToken cancellationToken = default)
         {
 
             var tcs = new TaskCompletionSource<object>();
-            readAsyncTaskCompletionSources.TryAdd(tcs.GetHashCode(), tcs);
+            readTasks.TryAdd(tcs.GetHashCode(), tcs);
 
-            using (cancellationToken.Register(() =>
-            {
-                tcs.SetCanceled();
-                cancellationToken.ThrowIfCancellationRequested();
-            }))
+            using (cancellationToken.Register(() => cancellationToken.ThrowIfCancellationRequested()))
             {
                 plctag.read(pointer, 0);
                 return tcs.Task;
@@ -145,19 +147,23 @@ namespace libplctag
 
         void ReadCompletedHandler(object sender, LibPlcTagEventArgs e)
         {
-            foreach (var tcsHash in readAsyncTaskCompletionSources.Keys)
+            foreach (var tcsHash in readTasks.Keys)
             {
-                if(readAsyncTaskCompletionSources.TryRemove(tcsHash, out TaskCompletionSource<object> tcs))
+                if(readTasks.TryRemove(tcsHash, out TaskCompletionSource<object> tcs))
+                {
                     tcs.SetResult(null);
+                }
             }
         }
 
         void ReadAbortedOrDestroyedHandler(object sender, LibPlcTagEventArgs e)
         {
-            foreach (var tcsHash in readAsyncTaskCompletionSources.Keys)
+            foreach (var tcsHash in readTasks.Keys)
             {
-                if(readAsyncTaskCompletionSources.TryRemove(tcsHash, out TaskCompletionSource<object> tcs))
+                if(readTasks.TryRemove(tcsHash, out TaskCompletionSource<object> tcs))
+                {
                     tcs.SetCanceled();
+                }
             }
         }
 
@@ -168,19 +174,15 @@ namespace libplctag
             plctag.write(pointer, millisecondTimeout);
         }
 
-        readonly ConcurrentDictionary<int, TaskCompletionSource<object>> writeAsyncTaskCompletionSources = new ConcurrentDictionary<int, TaskCompletionSource<object>>();
+        readonly ConcurrentDictionary<int, TaskCompletionSource<object>> writeTasks = new ConcurrentDictionary<int, TaskCompletionSource<object>>();
 
         public Task WriteAsync(CancellationToken cancellationToken = default)
         {
 
             var tcs = new TaskCompletionSource<object>();
-            readAsyncTaskCompletionSources.TryAdd(tcs.GetHashCode(), tcs);
+            writeTasks.TryAdd(tcs.GetHashCode(), tcs);
 
-            using (cancellationToken.Register(() =>
-            {
-                tcs.SetCanceled();
-                cancellationToken.ThrowIfCancellationRequested();
-            }))
+            using (cancellationToken.Register(() => cancellationToken.ThrowIfCancellationRequested()))
             {
                 plctag.write(pointer, 0);
                 return tcs.Task;
@@ -190,19 +192,25 @@ namespace libplctag
 
         void WriteCompletedHandler(object sender, LibPlcTagEventArgs e)
         {
-            foreach (var tcsHash in readAsyncTaskCompletionSources.Keys)
+            // Notify task awaiters that the write task is complete
+            foreach (var tcsHash in writeTasks.Keys)
             {
-                if (readAsyncTaskCompletionSources.TryRemove(tcsHash, out TaskCompletionSource<object> tcs))
+                if (writeTasks.TryRemove(tcsHash, out TaskCompletionSource<object> tcs))
+                {
                     tcs.SetResult(null);
+                }
             }
         }
 
         void WriteAbortedOrDestroyedHandler(object sender, LibPlcTagEventArgs e)
         {
-            foreach (var tcsHash in readAsyncTaskCompletionSources.Keys)
+            // Notify all current task awaiters that their write tasks have been cancelled
+            foreach (var tcsHash in writeTasks.Keys)
             {
-                if (readAsyncTaskCompletionSources.TryRemove(tcsHash, out TaskCompletionSource<object> tcs))
+                if (writeTasks.TryRemove(tcsHash, out TaskCompletionSource<object> tcs))
+                {
                     tcs.SetCanceled();
+                }
             }
         }
 
@@ -283,9 +291,14 @@ namespace libplctag
             handler?.Invoke(this, e);
         }
 
-        void EventCallback(int tagPointer, int eventCode, int statusCode)
+        void coreLibEventCallback(int tagPointer, int eventCode, int statusCode)
         {
-            // Need to run this asynchronously so as not to block the C callback
+
+            // Only proceed if this callback was triggered for this tag
+            if (tagPointer != pointer)
+                return;
+
+            // Core library is sensitive to delays so invoke event handlers on a different thread
             Task.Run(() =>
             {
                 switch ((Event)eventCode)

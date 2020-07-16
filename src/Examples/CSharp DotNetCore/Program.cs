@@ -8,7 +8,8 @@ namespace CSharpDotNetCore
         static async Task Main(string[] args)
         {
             //ExampleAsync.Run();
-            ExampleAsync.SyncAsyncComparison();
+            //ExampleAsync.ParallelRead();
+            ExampleAsync.SyncAsyncMultipleTagComparison();
             //ExampleRW.Run();
             //ExampleArray.Run();
             //NativeImportExample.Run();
