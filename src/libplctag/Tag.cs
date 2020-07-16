@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -12,6 +13,8 @@ namespace libplctag
 
     public class Tag : IDisposable
     {
+
+        private plctag.callback_func coreLibCallbackFuncDelegate;
 
         public Protocol Protocol { get; }
         public IPAddress Gateway { get; }
@@ -70,17 +73,24 @@ namespace libplctag
 
         void SetUpEvents()
         {
-            ReadCompleted += ReadCompletedHandler;
-            Aborted += ReadAbortedOrDestroyedHandler;
-            Destroyed += ReadAbortedOrDestroyedHandler;
 
-            WriteCompleted += WriteCompletedHandler;
-            Aborted += WriteAbortedOrDestroyedHandler;
-            Destroyed += WriteAbortedOrDestroyedHandler;
+            ReadCompleted += ReadTaskCompleter;
+            Aborted += ReadTaskCanceler;
+            Destroyed += ReadTaskCanceler;
 
-            plctag.register_callback(pointer, coreLibEventCallback);
+            WriteCompleted += WriteTaskCompleter;
+            Aborted += WriteTaskCanceler;
+            Destroyed += WriteTaskCanceler;
+
+
+            // Need to keep a reference to the delegate in memory so it doesn't get garbage collected
+            coreLibCallbackFuncDelegate = new plctag.callback_func(coreLibEventCallback);
+            
+            plctag.register_callback(pointer, coreLibCallbackFuncDelegate);
+
             if (GetStatus() != Status.Ok)
                 throw new LibPlcTagException(GetStatus());
+
         }
 
 
@@ -145,27 +155,20 @@ namespace libplctag
 
         }
 
-        void ReadCompletedHandler(object sender, LibPlcTagEventArgs e)
+        void FinalizeReadTasks(bool succesful)
         {
             foreach (var tcsHash in readTasks.Keys)
             {
-                if(readTasks.TryRemove(tcsHash, out TaskCompletionSource<object> tcs))
+                if (readTasks.TryRemove(tcsHash, out TaskCompletionSource<object> tcs))
                 {
-                    tcs.SetResult(null);
+                    if (succesful) tcs.SetResult(null);
+                    else tcs.SetCanceled();
                 }
             }
         }
 
-        void ReadAbortedOrDestroyedHandler(object sender, LibPlcTagEventArgs e)
-        {
-            foreach (var tcsHash in readTasks.Keys)
-            {
-                if(readTasks.TryRemove(tcsHash, out TaskCompletionSource<object> tcs))
-                {
-                    tcs.SetCanceled();
-                }
-            }
-        }
+        void ReadTaskCompleter(object sender, LibPlcTagEventArgs e) => FinalizeReadTasks(true);
+        void ReadTaskCanceler(object sender, LibPlcTagEventArgs e) => FinalizeReadTasks(false);
 
         public void Write(int millisecondTimeout)
         {
@@ -190,29 +193,20 @@ namespace libplctag
 
         }
 
-        void WriteCompletedHandler(object sender, LibPlcTagEventArgs e)
+        void FinalizeWriteTasks(bool succesful)
         {
-            // Notify task awaiters that the write task is complete
             foreach (var tcsHash in writeTasks.Keys)
             {
                 if (writeTasks.TryRemove(tcsHash, out TaskCompletionSource<object> tcs))
                 {
-                    tcs.SetResult(null);
+                    if (succesful) tcs.SetResult(null);
+                    else tcs.SetCanceled();
                 }
             }
         }
 
-        void WriteAbortedOrDestroyedHandler(object sender, LibPlcTagEventArgs e)
-        {
-            // Notify all current task awaiters that their write tasks have been cancelled
-            foreach (var tcsHash in writeTasks.Keys)
-            {
-                if (writeTasks.TryRemove(tcsHash, out TaskCompletionSource<object> tcs))
-                {
-                    tcs.SetCanceled();
-                }
-            }
-        }
+        void WriteTaskCompleter(object sender, LibPlcTagEventArgs e) => FinalizeWriteTasks(true);
+        void WriteTaskCanceler(object sender, LibPlcTagEventArgs e) => FinalizeWriteTasks(false);
 
         public int GetSize() => plctag.get_size(pointer);
 
@@ -293,6 +287,8 @@ namespace libplctag
 
         void coreLibEventCallback(int tagPointer, int eventCode, int statusCode)
         {
+
+            Debug.WriteLine($"{tagPointer} {(Event)eventCode} {(Status)statusCode}");
 
             // Only proceed if this callback was triggered for this tag
             if (tagPointer != pointer)
