@@ -66,8 +66,6 @@ namespace libplctag
             var attributeString = GetAttributeString(protocol, gateway, path, cpuType, elementSize, elementCount, name, debugLevel, readCacheMillisecondDuration, useConnectedMessaging);
 
             var createResult = plctag.create(attributeString, millisecondTimeout);
-            Console.WriteLine(createResult);
-            //Console.Read();
 
             if (createResult >= 0)
                 tagHandle = createResult;
@@ -163,13 +161,11 @@ namespace libplctag
                 switch (initiateReadResult)
                 {
                     case Status.Ok:
-                        readTask = null;
                         return Task.CompletedTask;
                     case Status.Pending:
                         readTask = new TaskCompletionSource<object>();
                         return readTask.Task;
                     default:
-                        readTask = null;
                         return Task.FromException(new LibPlcTagException(initiateReadResult));
                 }
             }
@@ -319,14 +315,7 @@ namespace libplctag
         void coreLibEventCallback(int tagPointer, int eventCode, int statusCode)
         {
 
-            //Debug.WriteLine($"{tagPointer} {(Event)eventCode} {(Status)statusCode}");
-
-            // Only proceed if this callback was triggered for this tag
-            // This should not occur because the callback is registered per tag
-            //if (tagPointer != tagHandle)
-                //return;
-
-            // Core library is sensitive to delays so invoke event handlers on a different thread
+            // Native library is sensitive to delays so invoke event handlers on a different thread
             Task.Run(() =>
             {
                 switch ((Event)eventCode)
