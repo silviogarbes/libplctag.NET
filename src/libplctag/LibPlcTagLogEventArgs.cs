@@ -4,7 +4,8 @@ namespace libplctag
 {
     public class LibPlcTagLogEventArgs : EventArgs
     {
-        public int tagPointer { get; set; }
+        public int TagHandle { get; set; }
         public DebugLevel DebugLevel { get; set; }
+        public string Message { get; set; }
     }
 }

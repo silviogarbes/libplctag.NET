@@ -22,25 +22,31 @@ namespace libplctag
                 throw new NotImplementedException();
         }
 
-        public static event EventHandler<LibPlcTagLogEventArgs> LogEventOccurred;
+        public static event EventHandler<LibPlcTagLogEventArgs> LogEntry;
 
-        static void OnLogEventOccurred(LibPlcTagLogEventArgs e)
+        static void OnLogEntry(LibPlcTagLogEventArgs e)
         {
-            EventHandler<LibPlcTagLogEventArgs> handler = LogEventOccurred;
+            EventHandler<LibPlcTagLogEventArgs> handler = LogEntry;
             handler?.Invoke(typeof(LibPlcTag), e);
         }
 
         static LibPlcTag()
         {
+            logEntryCallbackFunction = new plctag.log_callback_func(LogEntryCallbackFunction);
+            
+            // Once we're ready to redirect logging, uncomment
+            //plctag.register_logger(logEntryCallbackFunction);
+        }
 
-            Action<int, int, string> callback = delegate (int tagPointer, int debugLevel, string message)
+        static plctag.log_callback_func logEntryCallbackFunction;
+        static void LogEntryCallbackFunction(int tagHandle, int debugLevel, string message)
+        {
+            OnLogEntry(new LibPlcTagLogEventArgs()
             {
-                OnLogEventOccurred(new LibPlcTagLogEventArgs() { })
-
-            };
-
-            plctag.register_callback(LIB_ATTRIBUTE_POINTER, new plctag.log_callback_func(callback));
-
+                TagHandle = tagHandle,
+                DebugLevel = (DebugLevel)debugLevel,
+                Message = message
+            });
         }
 
     }
