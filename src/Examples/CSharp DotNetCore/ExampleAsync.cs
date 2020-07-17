@@ -40,34 +40,50 @@ namespace CSharpDotNetCore
         {
 
             Console.WriteLine("This method measures the speed of synchronous vs asynchronous reads");
-            var myTag = new Tag(IPAddress.Parse("192.168.0.10"), "1,0", CpuType.Logix, DataType.DINT, "Dummy", 5000);
 
-            while (myTag.GetStatus() == Status.Pending)
-                Thread.Sleep(100);
-            if (myTag.GetStatus() != Status.Ok)
-                throw new LibPlcTagException(myTag.GetStatus());
+            List<Tag> myTags;
 
-            int repetitions = 1000;
-
-            Console.Write($"Running {repetitions} Read() calls...");
-            var syncStopWatch = Stopwatch.StartNew();
-            for (int ii = 0; ii < repetitions; ii++)
+            for (int ii = 0; ii < 10; ii++)
             {
-                // We know that it takes less than 1000ms per read, so it will return as soon as it is finished
-                myTag.Read(1000);
-            }
-            syncStopWatch.Stop();
-            Console.WriteLine($"\ttook {(float)syncStopWatch.ElapsedMilliseconds / (float)repetitions}ms on average");
+                myTags = Enumerable.Range(0, 10)
+                .Select(i => new Tag(IPAddress.Parse("192.168.0.10"), "1,0", CpuType.Logix, DataType.DINT, $"MY_DINT_ARRAY_1000[{i}]", 5000, debugLevel: DebugLevel.None))
+                .ToList();
+
+                int repetitions = 100;
+
+                //Console.Write($"Running {repetitions} Read() calls...");
+                //var syncStopWatch = Stopwatch.StartNew();
+                //for (int ii = 0; ii < repetitions; ii++)
+                //{
+                //    // We know that it takes less than 1000ms per read, so it will return as soon as it is finished
+                //    myTag.Read(1000);
+                //}
+                //syncStopWatch.Stop();
+                //Console.WriteLine($"\ttook {(float)syncStopWatch.ElapsedMilliseconds / (float)repetitions}ms on average");
 
 
-            Console.Write($"Running {repetitions} ReadAsync() calls...");
-            var asyncStopWatch = Stopwatch.StartNew();
-            for (int ii = 0; ii < repetitions; ii++)
-            {
-                await myTag.ReadAsync();
+                Console.Write($"Running {repetitions} ReadAsync() calls...");
+                var asyncStopWatch = Stopwatch.StartNew();
+                for (int jj = 0; jj < repetitions; jj++)
+                {
+                    Task.WaitAll(
+                        myTags[0].ReadAsync(),
+                        myTags[1].ReadAsync(),
+                        myTags[2].ReadAsync(),
+                        myTags[3].ReadAsync(),
+                        myTags[4].ReadAsync(),
+                        myTags[5].ReadAsync(),
+                        myTags[6].ReadAsync(),
+                        myTags[7].ReadAsync(),
+                        myTags[8].ReadAsync(),
+                        myTags[9].ReadAsync()
+                        );
+                    //await myTag.ReadAsync();
+                }
+                asyncStopWatch.Stop();
+                Console.WriteLine($"\ttook {(float)asyncStopWatch.ElapsedMilliseconds / (float)repetitions}ms on average");
             }
-            asyncStopWatch.Stop();
-            Console.WriteLine($"\ttook {(float)asyncStopWatch.ElapsedMilliseconds / (float)repetitions}ms on average");
+            
 
         }
 
@@ -99,7 +115,7 @@ namespace CSharpDotNetCore
 
         }
 
-        public static void SyncAsyncMultipleTagComparison(int repetitions = 100)
+        public static void SyncAsyncMultipleTagComparison(int repetitions = 10)
         {
             Console.WriteLine("This method measures the speed of synchronous vs asynchronous reads for multiple tags simultaneously");
 
@@ -113,44 +129,47 @@ namespace CSharpDotNetCore
             SyncAsyncMultipleTagComparisonSingleRun(8, repetitions);
             SyncAsyncMultipleTagComparisonSingleRun(9, repetitions);
             SyncAsyncMultipleTagComparisonSingleRun(10, repetitions);
-            //SyncAsyncMultipleTagComparisonSingleRun(11);
-            //SyncAsyncMultipleTagComparisonSingleRun(12);
-            //SyncAsyncMultipleTagComparisonSingleRun(13);
-            //SyncAsyncMultipleTagComparisonSingleRun(14);
-            //SyncAsyncMultipleTagComparisonSingleRun(15);
-            //SyncAsyncMultipleTagComparisonSingleRun(16);
-            //SyncAsyncMultipleTagComparisonSingleRun(17);
-            //SyncAsyncMultipleTagComparisonSingleRun(18);
-            //SyncAsyncMultipleTagComparisonSingleRun(19);
-            //SyncAsyncMultipleTagComparisonSingleRun(20);
-            //SyncAsyncMultipleTagComparisonSingleRun(25);
-            //SyncAsyncMultipleTagComparisonSingleRun(30);
-            //SyncAsyncMultipleTagComparisonSingleRun(35);
-            //SyncAsyncMultipleTagComparisonSingleRun(40);
-            //SyncAsyncMultipleTagComparisonSingleRun(45);
-            //SyncAsyncMultipleTagComparisonSingleRun(50);
-            //SyncAsyncMultipleTagComparisonSingleRun(60);
-            //SyncAsyncMultipleTagComparisonSingleRun(70);
-            //SyncAsyncMultipleTagComparisonSingleRun(80);
-            //SyncAsyncMultipleTagComparisonSingleRun(90);
-            //SyncAsyncMultipleTagComparisonSingleRun(100);
-            //SyncAsyncMultipleTagComparisonSingleRun(200);
-            //SyncAsyncMultipleTagComparisonSingleRun(300);
-            //SyncAsyncMultipleTagComparisonSingleRun(400);
-            //SyncAsyncMultipleTagComparisonSingleRun(500);
-            //SyncAsyncMultipleTagComparisonSingleRun(600);
-            //SyncAsyncMultipleTagComparisonSingleRun(700);
-            //SyncAsyncMultipleTagComparisonSingleRun(800);
-            //SyncAsyncMultipleTagComparisonSingleRun(900);
-            //SyncAsyncMultipleTagComparisonSingleRun(1000);
+            SyncAsyncMultipleTagComparisonSingleRun(11, repetitions);
+            SyncAsyncMultipleTagComparisonSingleRun(12, repetitions);
+            SyncAsyncMultipleTagComparisonSingleRun(13, repetitions);
+            SyncAsyncMultipleTagComparisonSingleRun(14, repetitions);
+            SyncAsyncMultipleTagComparisonSingleRun(15, repetitions);
+            SyncAsyncMultipleTagComparisonSingleRun(16, repetitions);
+            SyncAsyncMultipleTagComparisonSingleRun(17, repetitions);
+            SyncAsyncMultipleTagComparisonSingleRun(18, repetitions);
+            SyncAsyncMultipleTagComparisonSingleRun(19, repetitions);
+            SyncAsyncMultipleTagComparisonSingleRun(20, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(25, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(30, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(35, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(40, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(45, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(50, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(60, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(70, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(80, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(90, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(100, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(200, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(300, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(400, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(500, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(600, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(700, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(800, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(900, repetitions);
+            //SyncAsyncMultipleTagComparisonSingleRun(1000, repetitions);
         }
 
         private static void SyncAsyncMultipleTagComparisonSingleRun(int maxTags, int repetitions = 10)
         {
 
-            var myTags = Enumerable.Range(0, maxTags).Select(i => new Tag(IPAddress.Parse("192.168.0.10"), "1,0", CpuType.Logix, DataType.DINT, $"MY_DINT_ARRAY_1000[{i}]", 5000));
+            Console.Write($"Running {repetitions} ReadAsync() calls on {maxTags} tags simultaneously...");
 
-            Console.Write($"Running {repetitions} ReadAsync() calls on {myTags.Count()} tags simultaneously...");
+            var myTags = Enumerable.Range(0, maxTags)
+                .Select(i => new Tag(IPAddress.Parse("192.168.0.10"), "1,0", CpuType.Logix, DataType.DINT, $"MY_DINT_ARRAY_1000[{i}]", 5000, debugLevel: DebugLevel.None))
+                .ToList();
+
             var asyncStopWatch = Stopwatch.StartNew();
 
             Task.WaitAll(myTags.Select(tag =>
@@ -159,23 +178,18 @@ namespace CSharpDotNetCore
                 {
                     for (int ii = 0; ii < repetitions; ii++)
                     {
-                        //Console.WriteLine($"{ii} {tag.Name}");
-                            await tag.ReadAsync();
-                        //try
-                        //{
-                        //    await tag.ReadAsync();
-                        //}
-                        //catch (LibPlcTagException e)
-                        //{
-                        //    Debug.WriteLine($"{ii} {e.Message}");
-                        //}
+                        await tag.ReadAsync();
                     }
-                        
                 });
             }).ToArray());
 
             asyncStopWatch.Stop();
             Console.WriteLine($"\ttook {(float)asyncStopWatch.ElapsedMilliseconds / (float)repetitions}ms on average");
+
+            foreach (var tag in myTags)
+            {
+                tag.Dispose();
+            }
 
         }
     }

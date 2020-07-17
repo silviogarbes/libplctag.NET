@@ -7,6 +7,7 @@ namespace CSharpDotNetCore
     {
         static async Task Main(string[] args)
         {
+            //ExampleDisposable.Run();
             //ExampleAsync.Run();
             //ExampleAsync.ParallelBlockingReads();
             //ExampleAsync.SyncAsyncComparison();
