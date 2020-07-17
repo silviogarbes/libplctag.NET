@@ -31,11 +31,11 @@ namespace libplctag
         }
         public int ReadCacheMillisecondDuration
         {
-            get => plctag.get_int_attribute(pointer, "read_cache_ms", int.MinValue);
-            set => plctag.set_int_attribute(pointer, "read_cache_ms", value);
+            get => plctag.get_int_attribute(tagHandle, "read_cache_ms", int.MinValue);
+            set => plctag.set_int_attribute(tagHandle, "read_cache_ms", value);
         }
 
-        private readonly int pointer;
+        private readonly int tagHandle;
 
         /// <summary>
         /// Provides a new tag. If the CPU type is LGX, the port type and slot has to be specified.
@@ -65,7 +65,14 @@ namespace libplctag
 
             var attributeString = GetAttributeString(protocol, gateway, path, cpuType, elementSize, elementCount, name, debugLevel, readCacheMillisecondDuration, useConnectedMessaging);
 
-            pointer = plctag.create(attributeString, millisecondTimeout);
+            var createResult = plctag.create(attributeString, millisecondTimeout);
+            Console.WriteLine(createResult);
+            //Console.Read();
+
+            if (createResult >= 0)
+                tagHandle = createResult;
+            else  // If the result is less than 0, it is an error code
+                throw new LibPlcTagException((Status)createResult);
 
             SetUpEvents();
 
@@ -74,19 +81,14 @@ namespace libplctag
         void SetUpEvents()
         {
 
+            // Used to finalize the asynchronous read/write task completion sources
             ReadCompleted += ReadTaskCompleter;
-            Aborted += ReadTaskCanceler;
-            Destroyed += ReadTaskCanceler;
-
             WriteCompleted += WriteTaskCompleter;
-            Aborted += WriteTaskCanceler;
-            Destroyed += WriteTaskCanceler;
-
 
             // Need to keep a reference to the delegate in memory so it doesn't get garbage collected
             coreLibCallbackFuncDelegate = new plctag.callback_func(coreLibEventCallback);
             
-            plctag.register_callback(pointer, coreLibCallbackFuncDelegate);
+            plctag.register_callback(tagHandle, coreLibCallbackFuncDelegate);
 
             if (GetStatus() != Status.Ok)
                 throw new LibPlcTagException(GetStatus());
@@ -128,119 +130,148 @@ namespace libplctag
 
         }
 
-        public void Dispose() => plctag.destroy(pointer);
+        public void Dispose() => plctag.destroy(tagHandle);
 
-        void Abort() => plctag.abort(pointer);
+        void Abort() => plctag.abort(tagHandle);
 
         public void Read(int millisecondTimeout)
         {
             if (millisecondTimeout <= 0)
                 throw new ArgumentOutOfRangeException(nameof(millisecondTimeout), "Must be greater than 0 for a synchronous read");
-            plctag.read(pointer, millisecondTimeout);
+            var result = (Status)plctag.read(tagHandle, millisecondTimeout);
         }
-
-        readonly ConcurrentDictionary<int, TaskCompletionSource<object>> readTasks = new ConcurrentDictionary<int, TaskCompletionSource<object>>();
-        
-        public Task ReadAsync(CancellationToken cancellationToken = default)
-        {
-
-            var tcs = new TaskCompletionSource<object>();
-            readTasks.TryAdd(tcs.GetHashCode(), tcs);
-
-            using (cancellationToken.Register(() => cancellationToken.ThrowIfCancellationRequested()))
-            {
-                plctag.read(pointer, 0);
-                return tcs.Task;
-            }
-
-        }
-
-        void FinalizeReadTasks(bool succesful)
-        {
-            foreach (var tcsHash in readTasks.Keys)
-            {
-                if (readTasks.TryRemove(tcsHash, out TaskCompletionSource<object> tcs))
-                {
-                    if (succesful) tcs.SetResult(null);
-                    else tcs.SetCanceled();
-                }
-            }
-        }
-
-        void ReadTaskCompleter(object sender, LibPlcTagEventArgs e) => FinalizeReadTasks(true);
-        void ReadTaskCanceler(object sender, LibPlcTagEventArgs e) => FinalizeReadTasks(false);
 
         public void Write(int millisecondTimeout)
         {
             if (millisecondTimeout <= 0)
                 throw new ArgumentOutOfRangeException(nameof(millisecondTimeout), "Must be greater than 0 for a synchronous write");
-            plctag.write(pointer, millisecondTimeout);
+            plctag.write(tagHandle, millisecondTimeout);
         }
 
-        readonly ConcurrentDictionary<int, TaskCompletionSource<object>> writeTasks = new ConcurrentDictionary<int, TaskCompletionSource<object>>();
 
+        private TaskCompletionSource<object> readTask;
+        public Task ReadAsync(CancellationToken cancellationToken = default)
+        {
+
+            using (cancellationToken.Register(() =>
+            {
+                Abort();
+                cancellationToken.ThrowIfCancellationRequested();
+            }))
+            {
+                var initiateReadResult = (Status)plctag.read(tagHandle, 0);
+                switch (initiateReadResult)
+                {
+                    case Status.Ok:
+                        readTask = null;
+                        return Task.CompletedTask;
+                    case Status.Pending:
+                        readTask = new TaskCompletionSource<object>();
+                        return readTask.Task;
+                    default:
+                        readTask = null;
+                        return Task.FromException(new LibPlcTagException(initiateReadResult));
+                }
+            }
+
+        }
+
+        private TaskCompletionSource<object> writeTask;
         public Task WriteAsync(CancellationToken cancellationToken = default)
         {
 
-            var tcs = new TaskCompletionSource<object>();
-            writeTasks.TryAdd(tcs.GetHashCode(), tcs);
-
-            using (cancellationToken.Register(() => cancellationToken.ThrowIfCancellationRequested()))
+            using (cancellationToken.Register(() =>
             {
-                plctag.write(pointer, 0);
-                return tcs.Task;
-            }
-
-        }
-
-        void FinalizeWriteTasks(bool succesful)
-        {
-            foreach (var tcsHash in writeTasks.Keys)
+                Abort();
+                cancellationToken.ThrowIfCancellationRequested();
+            }))
             {
-                if (writeTasks.TryRemove(tcsHash, out TaskCompletionSource<object> tcs))
+
+                // This statement acts as our thread-safety mechanism
+                var initiateWriteResult = (Status)plctag.write(tagHandle, 0);
+
+                switch (initiateWriteResult)
                 {
-                    if (succesful) tcs.SetResult(null);
-                    else tcs.SetCanceled();
+                    case Status.Ok:
+                        return Task.CompletedTask;
+                    case Status.Pending:
+                        writeTask = new TaskCompletionSource<object>();
+                        return writeTask.Task;
+                    default:
+                        return Task.FromException(new LibPlcTagException(initiateWriteResult));
                 }
+
+            }
+
+        }
+
+        // These are invoked by the tag event callbacks
+        void ReadTaskCompleter(object sender, LibPlcTagEventArgs e)
+        {
+            switch (e.Status)
+            {
+                case Status.Ok:
+                    readTask?.SetResult(null);
+                    break;
+                case Status.Pending:
+                    // Do nothing, wait for another ReadCompleted callback when Status is Ok.
+                    break;
+                default:
+                    readTask?.SetException(new LibPlcTagException(e.Status));
+                    break;
             }
         }
 
-        void WriteTaskCompleter(object sender, LibPlcTagEventArgs e) => FinalizeWriteTasks(true);
-        void WriteTaskCanceler(object sender, LibPlcTagEventArgs e) => FinalizeWriteTasks(false);
+        void WriteTaskCompleter(object sender, LibPlcTagEventArgs e)
+        {
+            switch (e.Status)
+            {
+                case Status.Ok:
+                    writeTask?.SetResult(null);
+                    break;
+                case Status.Pending:
+                    // Do nothing, wait for another WriteCompleted callback when Status is Ok.
+                    break;
+                default:
+                    writeTask?.SetException(new LibPlcTagException(e.Status));
+                    break;
+            }
+        }
 
-        public int GetSize() => plctag.get_size(pointer);
 
-        public Status GetStatus() => (Status)plctag.status(pointer);
+        public int GetSize() => plctag.get_size(tagHandle);
 
-        public ulong GetUInt64(int offset) => plctag.get_uint64(pointer, offset);
-        public void SetUInt64(int offset, ulong value) => plctag.set_uint64(pointer, offset, value);
+        public Status GetStatus() => (Status)plctag.status(tagHandle);
 
-        public long GetInt64(int offset) => plctag.get_int64(pointer, offset);
-        public void SetInt64(int offset, long value) => plctag.set_int64(pointer, offset, value);
+        public ulong GetUInt64(int offset) => plctag.get_uint64(tagHandle, offset);
+        public void SetUInt64(int offset, ulong value) => plctag.set_uint64(tagHandle, offset, value);
 
-        public uint GetUInt32(int offset) => plctag.get_uint32(pointer, offset);
-        public void SetUInt32(int offset, uint value) => plctag.set_uint32(pointer, offset, value);
+        public long GetInt64(int offset) => plctag.get_int64(tagHandle, offset);
+        public void SetInt64(int offset, long value) => plctag.set_int64(tagHandle, offset, value);
 
-        public int GetInt32(int offset) => plctag.get_int32(pointer, offset);
-        public void SetInt32(int offset, int value) => plctag.set_int32(pointer, offset, value);
+        public uint GetUInt32(int offset) => plctag.get_uint32(tagHandle, offset);
+        public void SetUInt32(int offset, uint value) => plctag.set_uint32(tagHandle, offset, value);
 
-        public ushort GetUInt16(int offset) => plctag.get_uint16(pointer, offset);
-        public void SetUInt16(int offset, ushort value) => plctag.set_uint16(pointer, offset, value);
+        public int GetInt32(int offset) => plctag.get_int32(tagHandle, offset);
+        public void SetInt32(int offset, int value) => plctag.set_int32(tagHandle, offset, value);
 
-        public short GetInt16(int offset) => plctag.get_int16(pointer, offset);
-        public void SetInt16(int offset, short value) => plctag.set_int16(pointer, offset, value);
+        public ushort GetUInt16(int offset) => plctag.get_uint16(tagHandle, offset);
+        public void SetUInt16(int offset, ushort value) => plctag.set_uint16(tagHandle, offset, value);
 
-        public byte GetUInt8(int offset) => plctag.get_uint8(pointer, offset);
-        public void SetUInt8(int offset, byte value) => plctag.set_uint8(pointer, offset, value);
+        public short GetInt16(int offset) => plctag.get_int16(tagHandle, offset);
+        public void SetInt16(int offset, short value) => plctag.set_int16(tagHandle, offset, value);
 
-        public sbyte GetInt8(int offset) => plctag.get_int8(pointer, offset);
-        public void SetInt8(int offset, sbyte value) => plctag.set_int8(pointer, offset, value);
+        public byte GetUInt8(int offset) => plctag.get_uint8(tagHandle, offset);
+        public void SetUInt8(int offset, byte value) => plctag.set_uint8(tagHandle, offset, value);
 
-        public double GetFloat64(int offset) => plctag.get_float64(pointer, offset);
-        public void SetFloat64(int offset, double value) => plctag.set_float64(pointer, offset, value);
+        public sbyte GetInt8(int offset) => plctag.get_int8(tagHandle, offset);
+        public void SetInt8(int offset, sbyte value) => plctag.set_int8(tagHandle, offset, value);
 
-        public float GetFloat32(int offset) => plctag.get_float32(pointer, offset);
-        public void SetFloat32(int offset, float value) => plctag.set_float32(pointer, offset, value);
+        public double GetFloat64(int offset) => plctag.get_float64(tagHandle, offset);
+        public void SetFloat64(int offset, double value) => plctag.set_float64(tagHandle, offset, value);
+
+        public float GetFloat32(int offset) => plctag.get_float32(tagHandle, offset);
+        public void SetFloat32(int offset, float value) => plctag.set_float32(tagHandle, offset, value);
 
         event EventHandler<LibPlcTagEventArgs> ReadStarted;
         event EventHandler<LibPlcTagEventArgs> ReadCompleted;
@@ -288,11 +319,12 @@ namespace libplctag
         void coreLibEventCallback(int tagPointer, int eventCode, int statusCode)
         {
 
-            Debug.WriteLine($"{tagPointer} {(Event)eventCode} {(Status)statusCode}");
+            //Debug.WriteLine($"{tagPointer} {(Event)eventCode} {(Status)statusCode}");
 
             // Only proceed if this callback was triggered for this tag
-            if (tagPointer != pointer)
-                return;
+            // This should not occur because the callback is registered per tag
+            //if (tagPointer != tagHandle)
+                //return;
 
             // Core library is sensitive to delays so invoke event handlers on a different thread
             Task.Run(() =>
