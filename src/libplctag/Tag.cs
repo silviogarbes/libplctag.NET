@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -66,7 +65,6 @@ namespace libplctag
             var attributeString = GetAttributeString(protocol, gateway, path, cpuType, elementSize, elementCount, name, debugLevel, readCacheMillisecondDuration, useConnectedMessaging);
 
             var createResult = plctag.create(attributeString, millisecondTimeout);
-
             if (createResult >= 0)
                 tagHandle = createResult;
             else  // If the result is less than 0, it is an error code
@@ -86,9 +84,21 @@ namespace libplctag
             // Need to keep a reference to the delegate in memory so it doesn't get garbage collected
             coreLibCallbackFuncDelegate = new plctag.callback_func(coreLibEventCallback);
             
-            plctag.register_callback(tagHandle, coreLibCallbackFuncDelegate);
+            var callbackRegistrationResult = (Status)plctag.register_callback(tagHandle, coreLibCallbackFuncDelegate);
+            if (callbackRegistrationResult != Status.Ok)
+                throw new LibPlcTagException(GetStatus());
 
-            if (GetStatus() != Status.Ok)
+        }
+
+        void RemoveEvents()
+        {
+
+            // Used to finalize the  read/write task completion sources
+            ReadCompleted -= ReadTaskCompleter;
+            WriteCompleted -= WriteTaskCompleter;
+
+            var callbackRemovalResult = (Status)plctag.unregister_callback(tagHandle);
+            if (callbackRemovalResult != Status.Ok)
                 throw new LibPlcTagException(GetStatus());
 
         }
@@ -96,7 +106,7 @@ namespace libplctag
 
         ~Tag()
         {
-            Dispose();
+            Dispose(false);
         }
 
         private static string GetAttributeString(Protocol protocol, IPAddress gateway, string path, CpuType CPU, int elementSize, int elementCount, string name, DebugLevel debugLevel, int readCacheMillisecondDuration, bool useConnectedMessaging)
@@ -128,22 +138,55 @@ namespace libplctag
 
         }
 
-        public void Dispose() => plctag.destroy(tagHandle);
 
-        void Abort() => plctag.abort(tagHandle);
+        public void Dispose()
+        {
+            // Dispose of unmanaged resources.
+            Dispose(true);
+            // Suppress finalization.
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            RemoveEvents();
+            Destroy();
+        }
+
+        void Destroy()
+        {
+            var destroyResult = (Status)plctag.destroy(tagHandle);
+            if (destroyResult != Status.Ok)
+                throw new LibPlcTagException(destroyResult);
+        }
+
+        void Abort()
+        {
+            var abortResult = (Status)plctag.abort(tagHandle);
+            if (abortResult != Status.Ok)
+                throw new LibPlcTagException(abortResult);
+        }
 
         public void Read(int millisecondTimeout)
         {
+
             if (millisecondTimeout <= 0)
                 throw new ArgumentOutOfRangeException(nameof(millisecondTimeout), "Must be greater than 0 for a synchronous read");
-            var result = (Status)plctag.read(tagHandle, millisecondTimeout);
+            
+            var readResult = (Status)plctag.read(tagHandle, millisecondTimeout);
+            if (readResult != Status.Ok)
+                throw new LibPlcTagException(readResult);
+
         }
 
         public void Write(int millisecondTimeout)
         {
             if (millisecondTimeout <= 0)
                 throw new ArgumentOutOfRangeException(nameof(millisecondTimeout), "Must be greater than 0 for a synchronous write");
-            plctag.write(tagHandle, millisecondTimeout);
+
+            var writeResult = (Status)plctag.write(tagHandle, millisecondTimeout);
+            if (writeResult != Status.Ok)
+                throw new LibPlcTagException(writeResult);
         }
 
 
@@ -312,8 +355,10 @@ namespace libplctag
             handler?.Invoke(this, e);
         }
 
-        void coreLibEventCallback(int tagPointer, int eventCode, int statusCode)
+        void coreLibEventCallback(int eventTagHandle, int eventCode, int statusCode)
         {
+
+            //Debug.WriteLine($"{eventTagHandle} {(Event)eventCode} {(Status)statusCode}");
 
             // Native library is sensitive to delays so invoke event handlers on a different thread
             Task.Run(() =>
