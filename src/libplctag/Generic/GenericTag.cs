@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace libplctag.Generic
 {
@@ -11,14 +13,14 @@ namespace libplctag.Generic
         private readonly TPlcType plcDataType;
         private readonly Tag tag;
 
-        public GenericTag()
+        public GenericTag(AttributeGroup attributeGroup = default)
         {
             //Instantiate our definition
             //TODO: These could be singleton or a private static lookup for performance
 
             plcDataType = new TPlcType();
 
-            this.tag = new Tag()
+            this.tag = new Tag(attributeGroup)
             {
                 ElementSize = plcDataType.ElementSize
             };
@@ -29,10 +31,16 @@ namespace libplctag.Generic
         public byte CipCode => plcDataType.CipCode;
 
         public void Initialize(int timeout) => tag.Initialize(timeout);
+        public Task InitializeAsync(int millisecondTimeout, CancellationToken token = default) => tag.InitializeAsync(millisecondTimeout, token);
+        public Task InitializeAsync(CancellationToken token = default) => tag.InitializeAsync(token);
 
         public void Read(int timeout) => tag.Read(timeout);
+        public Task ReadAsync(int millisecondTimeout, CancellationToken token = default) => tag.ReadAsync(millisecondTimeout, token);
+        public Task ReadAsync(CancellationToken token = default) => tag.ReadAsync(token);
 
         public void Write(int timeout) => tag.Write(timeout);
+        public Task WriteAsync(int millisecondTimeout, CancellationToken token = default) => tag.WriteAsync(millisecondTimeout, token);
+        public Task WriteAsync(CancellationToken token = default) => tag.WriteAsync(token);
 
         public void Abort() => ((ITag)tag).Abort();
 
