@@ -5,21 +5,26 @@ using System.Threading;
 
 namespace CSharpDotNetCore
 {
-    class ExamplePlc
+    class ExampleAttributeGroup
     {
         public static void Run()
         {
 
             const int TIMEOUT = 5000;
 
-            var myPlc = new Plc()
+            var myPlc = new AttributeGroup()
             {
                 Gateway = "192.168.0.10",
                 Path = "1,0",
-                Type = PlcType.ControlLogix
+                PlcType = PlcType.ControlLogix,
+                Protocol = Protocol.ab_eip
             };
 
-            var myTag = myPlc.CreateTag("PROGRAM: SomeProgram.SomeDINT", DataType.DINT);
+            var myTag = new Tag()
+            {
+                Name = "MY_DINT_1D",
+                ElementSize = DataType.DINT
+            };
             
             myTag.Initialize(TIMEOUT);
 

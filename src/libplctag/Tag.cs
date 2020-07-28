@@ -13,112 +13,105 @@ namespace libplctag
     {
 
         private const int ASYNC_STATUS_POLL_INTERVAL = 2;
+
+        private readonly AttributeGroup attributes;
         
 
-        private string _name;
         public string Name
         {
-            get => _name;
+            get => attributes.Name;
             set
             {
                 if (IsInitialized)
                     throw new InvalidOperationException("Already initialized");
-                _name = value;
+                attributes.Name = value;
             }
         }
 
-        private Protocol? _protocol;
         public Protocol? Protocol
         {
-            get => _protocol;
+            get => attributes.Protocol;
             set
             {
                 if (IsInitialized)
                     throw new InvalidOperationException("Already initialized");
-                _protocol = value;
+                attributes.Protocol = value;
             }
         }
 
-        private string _gateway;
         public string Gateway
         {
-            get => _gateway;
+            get => attributes.Gateway;
             set
             {
                 if (IsInitialized)
                     throw new InvalidOperationException("Already initialized");
-                _gateway = value;
+                attributes.Gateway = value;
             }
         }
 
-        private PlcType? _plcType;
         public PlcType? PlcType
         {
-            get => _plcType;
+            get => attributes.PlcType;
             set
             {
                 if (IsInitialized)
                     throw new InvalidOperationException("Already initialized");
-                _plcType = value;
+                attributes.PlcType = value;
             }
         }
 
-        private string _path;
         public string Path
         {
-            get => _path;
+            get => attributes.Path;
             set
             {
                 if (IsInitialized)
                     throw new InvalidOperationException("Already initialized");
-                _path = value;
+                attributes.Path = value;
             }
         }
 
-        private int? _elementSize;
         public int? ElementSize
         {
-            get => _elementSize;
+            get => attributes.ElementSize;
             set
             {
                 if (IsInitialized)
                     throw new InvalidOperationException("Already initialized");
-                _elementSize = value;
+                attributes.ElementSize = value;
             }
         }
 
-        private int? _elementCount;
         public int? ElementCount
         {
-            get => _elementCount;
+            get => attributes.ElementCount;
             set
             {
                 if (IsInitialized)
                     throw new InvalidOperationException("Already initialized");
-                _elementCount = value;
+                attributes.ElementCount = value;
             }
         }
 
-        private bool? _useConnectedMessaging;
         public bool? UseConnectedMessaging
         {
-            get => _useConnectedMessaging;
+            get => attributes.UseConnectedMessaging;
             set
             {
                 if (IsInitialized)
                     throw new InvalidOperationException("Already initialized");
-                _useConnectedMessaging = value;
+                attributes.UseConnectedMessaging = value;
             }
         }
 
-        private int? _readCacheMillisecondDuration;
         public int? ReadCacheMillisecondDuration
         {
             get
             {
 
                 if (!IsInitialized)
-                    return _readCacheMillisecondDuration;
+                    return attributes.ReadCacheMillisecondDuration;
 
                 var result = plctag.plc_tag_get_int_attribute(tagHandle, "read_cache_ms", int.MinValue);
                 if (result == int.MinValue)
@@ -129,7 +122,7 @@ namespace libplctag
             {
                 if (!IsInitialized)
                 {
-                    _readCacheMillisecondDuration = value;
+                    attributes.ReadCacheMillisecondDuration = value;
                     return;
                 }
 
@@ -146,25 +139,9 @@ namespace libplctag
             Dispose();
         }
 
-        private string GetAttributeString()
+        public Tag(AttributeGroup attributeGroup = default)
         {
-
-            var attributes = new Dictionary<string, string>();
-
-            attributes.Add("protocol", this.Protocol.ToString());
-            attributes.Add("gateway", this.Gateway);
-            attributes.Add("path", Path);
-            attributes.Add("plc", PlcType.ToString().ToLower());
-            attributes.Add("elem_size", ElementSize?.ToString());
-            attributes.Add("elem_count", ElementCount?.ToString());
-            attributes.Add("name", Name);
-            attributes.Add("read_cache_ms", ReadCacheMillisecondDuration?.ToString());
-            if(UseConnectedMessaging.HasValue)
-                attributes.Add("use_connected_msg", UseConnectedMessaging.Value ? "1" : "0");
-
-            string separator = "&";
-            return string.Join(separator, attributes.Where(attr => attr.Value != null).Select(attr => $"{attr.Key}={attr.Value}"));
-
+            attributes = attributeGroup ?? new AttributeGroup();
         }
 
         public bool IsInitialized { get; private set; }
@@ -172,13 +149,13 @@ namespace libplctag
         public void Initialize(int millisecondTimeout)
         {
 
-            if (!IsInitialized)
+            if (IsInitialized)
                 throw new InvalidOperationException("Already initialized");
 
             if (millisecondTimeout <= 0)
                 throw new ArgumentOutOfRangeException(nameof(millisecondTimeout), "Must be greater than 0 for a synchronous initialization");
 
-            var attributeString = GetAttributeString();
+            var attributeString = attributes.GetAttributeString();
 
             var result = plctag.plc_tag_create(attributeString, millisecondTimeout);
             if (result < 0)
@@ -204,7 +181,7 @@ namespace libplctag
             if (!IsInitialized)
                 throw new InvalidOperationException("Already initialized");
 
-            var attributeString = GetAttributeString();
+            var attributeString = attributes.GetAttributeString();
 
             var result = plctag.plc_tag_create(attributeString, 0);
             if (result < 0)

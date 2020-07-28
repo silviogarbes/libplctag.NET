@@ -6,7 +6,8 @@ namespace CSharpDotNetCore
     {
         static void Main(string[] args)
         {
-            ExampleListTags.Run();
+            ExampleAttributeGroup.Run();
+            //ExampleListTags.Run();
             //ExampleAsync.SyncAsyncMultipleTagComparison();
             //ExampleAsync.AsyncParallelCancellation();
             //ExampleGenericTag.Run();
