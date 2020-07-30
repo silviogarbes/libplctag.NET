@@ -1,5 +1,5 @@
 ﻿using libplctag;
-using libplctag.Generic.DataTypes;
+using libplctag.DataTypes;
 using System;
 using System.Net;
 using System.Threading;
@@ -24,7 +24,7 @@ namespace CSharpDotNetCore
             var myTag = new Tag()
             {
                 Name = "MY_DINT_1D",
-                ElementSize = DataType.DINT
+                ElementSize = 4
             };
             
             myTag.Initialize(TIMEOUT);
@@ -60,10 +60,10 @@ namespace CSharpDotNetCore
             };
 
             var tags = new TagGroup();
-            var dint1a = tags.CreateTag("MY_DINT1", DataType.DINT, myPlcA);
-            var dint2a = tags.CreateTag("MY_DINT2", DataType.DINT, myPlcA);
-            var dint1b = tags.CreateTag("MY_DINT1", DataType.DINT, myPlcB);
-            var dint2b = tags.CreateTag("MY_DINT2", DataType.DINT, myPlcB);
+            var dint1a = tags.CreateTag("MY_DINT1", 4, myPlcA);
+            var dint2a = tags.CreateTag("MY_DINT2", 4, myPlcA);
+            var dint1b = tags.CreateTag("MY_DINT1", 4, myPlcB);
+            var dint2b = tags.CreateTag("MY_DINT2", 4, myPlcB);
 
 
             var timeout = 1000;
@@ -96,10 +96,10 @@ namespace CSharpDotNetCore
             };
 
             var tags = new TagGroup();
-            var dint1a = tags.CreateGenericTag<PlcTypeDINT, int>("MY_DINT1", myPlcA);
-            var dint2a = tags.CreateGenericTag<PlcTypeDINT, int>("MY_DINT2", myPlcA);
-            var dint1b = tags.CreateGenericTag<PlcTypeDINT, int>("MY_DINT1", myPlcB);
-            var dint2b = tags.CreateGenericTag<PlcTypeDINT, int>("MY_DINT2", myPlcB);
+            var dint1a = tags.CreateTag<DintMarshaller, int>("MY_DINT1", myPlcA);
+            var dint2a = tags.CreateTag<DintMarshaller, int>("MY_DINT2", myPlcA);
+            var dint1b = tags.CreateTag<DintMarshaller, int>("MY_DINT1", myPlcB);
+            var dint2b = tags.CreateTag<DintMarshaller, int>("MY_DINT2", myPlcB);
 
             var timeout = 1000;
             tags.InitializeAll(timeout);

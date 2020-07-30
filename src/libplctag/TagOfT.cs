@@ -8,21 +8,22 @@ using System.Threading.Tasks;
 
 namespace libplctag
 {
-    public class Tag<M, T> : IDisposable
+    public class Tag<M, T> : IDisposable, ITag
         where M : Marshaller<T>, new()
     {
 
         private readonly Tag _tag;
         private readonly Marshaller<T> _marshaller;
 
-        public Tag()
+        public Tag(AttributeGroup attributeGroup = default)
         {
             _marshaller = new M();
-            _tag = new Tag()
+            _tag = new Tag(attributeGroup)
             {
                 ElementSize = _marshaller.ElementSize,
             };
         }
+
 
         public Protocol? Protocol
         {

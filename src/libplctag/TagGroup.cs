@@ -1,4 +1,4 @@
-﻿using libplctag.Generic;
+﻿using libplctag.DataTypes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -30,11 +30,11 @@ namespace libplctag
 
         }
 
-        public GenericTag<TPlcType, TDotNetType> CreateGenericTag<TPlcType, TDotNetType>(string name, AttributeGroup attributeGroup = default)
-             where TPlcType : IPlcType<TDotNetType>, new()
+        public Tag<M, T> CreateTag<M, T>(string name, AttributeGroup attributeGroup = default)
+             where M : Marshaller<T>, new()
         {
 
-            var newTag = new GenericTag<TPlcType, TDotNetType>(attributeGroup)
+            var newTag = new Tag<M, T>(attributeGroup)
             {
                 Name = name
             };
