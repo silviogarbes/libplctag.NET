@@ -8,6 +8,7 @@ namespace CSharpDotNetCore
         {
             ExampleGroups.Run();
             //ExampleListTags.Run();
+            //ExampleGenericTag.UDT_Array();
             //ExampleAsync.SyncAsyncMultipleTagComparison();
             //ExampleAsync.AsyncParallelCancellation();
             //ExampleGenericTag.Run();
@@ -19,7 +20,6 @@ namespace CSharpDotNetCore
             //NativeImportExample.Run();
             //NativeImportExample.RunCallbackExample();
             //NativeImportExample.RunLoggerExample();
-
             Console.ReadKey();
         }
     }

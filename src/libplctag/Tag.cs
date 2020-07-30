@@ -9,7 +9,7 @@ using libplctag.NativeImport;
 namespace libplctag
 {
 
-    public sealed class Tag : IDisposable, ITag
+    public sealed class Tag : IDisposable
     {
 
         private const int ASYNC_STATUS_POLL_INTERVAL = 2;
@@ -109,14 +109,9 @@ namespace libplctag
         {
             get
             {
-
                 if (!IsInitialized)
                     return attributes.ReadCacheMillisecondDuration;
-
-                var result = plctag.plc_tag_get_int_attribute(tagHandle, "read_cache_ms", int.MinValue);
-                if (result == int.MinValue)
-                    throw new LibPlcTagException();
-                return result;
+                return GetIntAttribute("read_cache_ms");
             }
             set
             {
@@ -125,10 +120,7 @@ namespace libplctag
                     attributes.ReadCacheMillisecondDuration = value;
                     return;
                 }
-
-                var result = (Status)plctag.plc_tag_set_int_attribute(tagHandle, "read_cache_ms", value.Value);
-                if (result != Status.Ok)
-                    throw new LibPlcTagException(result);
+                SetIntAttribute("read_cache_ms", value.Value);
             }
         }
 
@@ -178,7 +170,7 @@ namespace libplctag
         public async Task InitializeAsync(CancellationToken token = default)
         {
 
-            if (!IsInitialized)
+            if (IsInitialized)
                 throw new InvalidOperationException("Already initialized");
 
             var attributeString = attributes.GetAttributeString();
@@ -209,6 +201,9 @@ namespace libplctag
         public void Dispose()
         {
             if (_isDisposed)
+                return;
+
+            if (!IsInitialized)
                 return;
 
             var result = (Status)plctag.plc_tag_destroy(tagHandle);
@@ -315,6 +310,33 @@ namespace libplctag
         }
 
         public Status GetStatus() => (Status)plctag.plc_tag_status(tagHandle);
+
+        public byte[] GetBuffer()
+        {
+            var tagSize = GetSize();
+            var temp = new byte[tagSize];
+
+            for (int ii = 0; ii < tagSize; ii++)
+                temp[ii] = GetUInt8(ii);
+
+            return temp;
+        }
+
+
+        private int GetIntAttribute(string attributeName)
+        {
+            var result = plctag.plc_tag_get_int_attribute(tagHandle, attributeName, int.MinValue);
+            if (result == int.MinValue)
+                throw new LibPlcTagException();
+            return result;
+        }
+
+        private void SetIntAttribute(string attributeName, int value)
+        {
+            var result = (Status)plctag.plc_tag_set_int_attribute(tagHandle, attributeName, value);
+            if (result != Status.Ok)
+                throw new LibPlcTagException(result);
+        }
 
         public bool GetBit(int offset)
         {
