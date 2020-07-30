@@ -15,12 +15,14 @@ namespace libplctag
         private readonly Tag _tag;
         private readonly Marshaller<T> _marshaller;
 
-        public Tag(AttributeGroup attributeGroup = default)
+        public Tag(AttributeGroup attributeGroup = default, string name = default, int arrayLength = 1)
         {
             _marshaller = new M();
             _tag = new Tag(attributeGroup)
             {
                 ElementSize = _marshaller.ElementSize,
+                Name = name,
+                ElementCount = _marshaller.ElementCountFromArrayLength(arrayLength)
             };
         }
 

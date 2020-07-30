@@ -59,11 +59,15 @@ namespace CSharpDotNetCore
                 Protocol = Protocol.ab_eip
             };
 
-            var tags = new TagGroup();
-            var dint1a = tags.CreateTag("MY_DINT1", 4, myPlcA);
-            var dint2a = tags.CreateTag("MY_DINT2", 4, myPlcA);
-            var dint1b = tags.CreateTag("MY_DINT1", 4, myPlcB);
-            var dint2b = tags.CreateTag("MY_DINT2", 4, myPlcB);
+            var dint1a = new Tag(myPlcA){ ElementCount = 1, Name = "MY_DINT_1D[0]" };
+            var dint2a = new Tag(myPlcA){ ElementCount = 1, Name = "MY_DINT_1D[1]" };
+            var dint1b = new Tag(myPlcB){ ElementCount = 1, Name = "MY_DINT_1D[2]" };
+            var dint2b = new Tag(myPlcB){ ElementCount = 1, Name = "MY_DINT_1D[3]" };
+
+            var tags = new TagGroup()
+            {
+                dint1a, dint2a, dint1b, dint2b
+            };
 
 
             var timeout = 1000;
@@ -76,7 +80,7 @@ namespace CSharpDotNetCore
 
         }
 
-        public void GenericTagGroup()
+        public static void GenericTagGroup()
         {
 
             var myPlcA = new AttributeGroup()
@@ -89,23 +93,27 @@ namespace CSharpDotNetCore
 
             var myPlcB = new AttributeGroup()
             {
-                Gateway = "192.168.0.11",
+                Gateway = "192.168.0.10",
                 Path = "1,0",
                 PlcType = PlcType.ControlLogix,
                 Protocol = Protocol.ab_eip
             };
 
-            var tags = new TagGroup();
-            var dint1a = tags.CreateTag<DintMarshaller, int>("MY_DINT1", myPlcA);
-            var dint2a = tags.CreateTag<DintMarshaller, int>("MY_DINT2", myPlcA);
-            var dint1b = tags.CreateTag<DintMarshaller, int>("MY_DINT1", myPlcB);
-            var dint2b = tags.CreateTag<DintMarshaller, int>("MY_DINT2", myPlcB);
+            var dint1a = new Tag<DintMarshaller, int>(myPlcA, "MY_DINT_1D[0]");
+            var dint2a = new Tag<DintMarshaller, int>(myPlcA, "MY_DINT_1D[1]");
+            var dint1b = new Tag<DintMarshaller, int>(myPlcB, "MY_DINT_1D[2]");
+            var dint2b = new Tag<DintMarshaller, int>(myPlcB, "MY_DINT_1D[3]");
+
+            var tags = new TagGroup()
+            {
+                dint1a, dint2a, dint1b, dint2b
+            };
 
             var timeout = 1000;
             tags.InitializeAll(timeout);
             tags.ReadAll(timeout);
 
-            var value = dint1a.Value;
+            var value = dint2b.Value[0];
 
             Console.WriteLine(value);
 
