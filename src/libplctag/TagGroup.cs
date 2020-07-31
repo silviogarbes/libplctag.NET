@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 
 namespace libplctag
 {
+    /// <summary>
+    /// Provides simultaneous read/write functionality for a collection of tags.
+    /// </summary>
     public class TagGroup : IEnumerable<ITag>
     {
 
@@ -15,6 +18,10 @@ namespace libplctag
 
         public void Add(ITag tag) => _tags.Add(tag);
         public void Remove(ITag tag) => _tags.Remove(tag);
+        public void Clear() => _tags.Clear();
+
+        public IEnumerator<ITag> GetEnumerator() => _tags.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
 
 
         public void ReadAll(int millisecondTimeout) => Task.WaitAll(_tags.Select(t => t.ReadAsync(millisecondTimeout)).ToArray());
@@ -31,8 +38,6 @@ namespace libplctag
         public async Task InitializeAllAsync(int millisecondTimeout, CancellationToken token = default) => await Task.WhenAll(_tags.Select(t => t.InitializeAsync(millisecondTimeout, token)).ToArray());
         public async Task InitializeAllAsync(CancellationToken token = default) => await Task.WhenAll(_tags.Select(t => t.InitializeAsync(token)).ToArray());
 
-        public IEnumerator<ITag> GetEnumerator() => _tags.GetEnumerator();
-        IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
 
     }
 }

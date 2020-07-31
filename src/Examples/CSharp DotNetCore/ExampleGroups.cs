@@ -21,7 +21,7 @@ namespace CSharpDotNetCore
                 Protocol = Protocol.ab_eip
             };
 
-            var myTag = new Tag()
+            var myTag = new Tag(myPlc)
             {
                 Name = "MY_DINT_1D",
                 ElementSize = 4
