@@ -1,5 +1,8 @@
 ﻿using libplctag.DataTypes;
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -8,8 +11,9 @@ namespace libplctag
     /// <summary>
     /// A class that allows for strongly-typed objects tied to PLC tags
     /// </summary>
-    /// <typeparam name="T">The desired CLR type of Tag.Value</typeparam>
-    public class Tag<T> : IDisposable, ITag
+    /// <typeparam name="M">A mapper class that handles data conversion</typeparam>
+    /// <typeparam name="T">The desired C# type of Tag.Value</typeparam>
+    public class Tag<M, T> : IDisposable, ITag where M : IPlcMapper<T>, new()
     {
 
         private readonly Tag _tag;
@@ -17,68 +21,11 @@ namespace libplctag
 
         public Tag()
         {
-            _plcMapper = GetMapper();
+            _plcMapper = new M();
             _tag = new Tag()
             {
                 ElementSize = _plcMapper.ElementSize,
             };
-        }
-
-        IPlcMapper<T> GetMapper()
-        {
-            switch (default(T))
-            {
-                case bool @bool:
-                case bool[] @bool1d:
-                case bool[,] @bool2d:
-                case bool[,,] @bool3d:
-                    return (IPlcMapper<T>)new BoolPlcMapper();
-
-                case sbyte @sbyte:
-                case sbyte[] @sbyte1d:
-                case sbyte[,] @sbyte2d:
-                case sbyte[,,] @sbyte3d:
-                    return (IPlcMapper<T>)new SintPlcMapper();
-
-                case short @short:
-                case short[] @short1d:
-                case short[,] @short2d:
-                case short[,,] @short3d:
-                    return (IPlcMapper<T>)new IntPlcMapper();
-
-                case int @int:
-                case int[] @int1d:
-                case int[,] @int2d:
-                case int[,,] @int3d:
-                    return (IPlcMapper<T>)new DintPlcMapper();
-
-                case long @long:
-                case long[] @long1d:
-                case long[,] @long2d:
-                case long[,,] @long3d:
-                    return (IPlcMapper<T>)new LintPlcMapper();
-
-                case float @float:
-                case float[] @float1d:
-                case float[,] @float2d:
-                case float[,,] @float3d:
-                    return (IPlcMapper<T>)new RealPlcMapper();
-
-                case double @double:
-                case double[] @double1d:
-                case double[,] @double2d:
-                case double[,,] @double3d:
-                    return (IPlcMapper<T>)new LrealPlcMapper();
-
-                case string @string:
-                case string[] @string1d:
-                case string[,] @string2d:
-                case string[,,] @string3d:
-                    return (IPlcMapper<T>)new StringPlcMapper();
-
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(T), "Could not determine mapper class for type argument");
-            }
         }
 
         /// <summary>
