@@ -26,54 +26,55 @@ namespace libplctag
 
         IPlcMapper<T> GetMapper()
         {
+
             switch (default(T))
             {
-                case bool @bool:
-                case bool[] @bool1d:
-                case bool[,] @bool2d:
-                case bool[,,] @bool3d:
+                case bool _:
+                case bool[] _:
+                case bool[,] _:
+                case bool[,,] _:
                     return (IPlcMapper<T>)new BoolPlcMapper();
 
-                case sbyte @sbyte:
-                case sbyte[] @sbyte1d:
-                case sbyte[,] @sbyte2d:
-                case sbyte[,,] @sbyte3d:
+                case sbyte _:
+                case sbyte[] _:
+                case sbyte[,] _:
+                case sbyte[,,] _:
                     return (IPlcMapper<T>)new SintPlcMapper();
 
-                case short @short:
-                case short[] @short1d:
-                case short[,] @short2d:
-                case short[,,] @short3d:
+                case short _:
+                case short[] _:
+                case short[,] _:
+                case short[,,] _:
                     return (IPlcMapper<T>)new IntPlcMapper();
 
-                case int @int:
-                case int[] @int1d:
-                case int[,] @int2d:
-                case int[,,] @int3d:
+                case int _:
+                case int[] _:
+                case int[,] _:
+                case int[,,] _:
                     return (IPlcMapper<T>)new DintPlcMapper();
 
-                case long @long:
-                case long[] @long1d:
-                case long[,] @long2d:
-                case long[,,] @long3d:
+                case long _:
+                case long[] _:
+                case long[,] _:
+                case long[,,] _:
                     return (IPlcMapper<T>)new LintPlcMapper();
 
-                case float @float:
-                case float[] @float1d:
-                case float[,] @float2d:
-                case float[,,] @float3d:
+                case float _:
+                case float[] _:
+                case float[,] _:
+                case float[,,] _:
                     return (IPlcMapper<T>)new RealPlcMapper();
 
-                case double @double:
-                case double[] @double1d:
-                case double[,] @double2d:
-                case double[,,] @double3d:
+                case double _:
+                case double[] _:
+                case double[,] _:
+                case double[,,] _:
                     return (IPlcMapper<T>)new LrealPlcMapper();
 
-                case string @string:
-                case string[] @string1d:
-                case string[,] @string2d:
-                case string[,,] @string3d:
+                case string _:
+                case string[] _:
+                case string[,] _:
+                case string[,,] _:
                     return (IPlcMapper<T>)new StringPlcMapper();
 
                 default:
