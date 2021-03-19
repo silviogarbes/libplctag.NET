@@ -17,69 +17,11 @@ namespace libplctag
 
         public Tag()
         {
-            _plcMapper = GetMapper();
+            _plcMapper = MapperLookup.GetMapper<T>();
             _tag = new Tag()
             {
                 ElementSize = _plcMapper.ElementSize,
             };
-        }
-
-        IPlcMapper<T> GetMapper()
-        {
-
-            switch (default(T))
-            {
-                case bool _:
-                case bool[] _:
-                case bool[,] _:
-                case bool[,,] _:
-                    return (IPlcMapper<T>)new BoolPlcMapper();
-
-                case sbyte _:
-                case sbyte[] _:
-                case sbyte[,] _:
-                case sbyte[,,] _:
-                    return (IPlcMapper<T>)new SintPlcMapper();
-
-                case short _:
-                case short[] _:
-                case short[,] _:
-                case short[,,] _:
-                    return (IPlcMapper<T>)new IntPlcMapper();
-
-                case int _:
-                case int[] _:
-                case int[,] _:
-                case int[,,] _:
-                    return (IPlcMapper<T>)new DintPlcMapper();
-
-                case long _:
-                case long[] _:
-                case long[,] _:
-                case long[,,] _:
-                    return (IPlcMapper<T>)new LintPlcMapper();
-
-                case float _:
-                case float[] _:
-                case float[,] _:
-                case float[,,] _:
-                    return (IPlcMapper<T>)new RealPlcMapper();
-
-                case double _:
-                case double[] _:
-                case double[,] _:
-                case double[,,] _:
-                    return (IPlcMapper<T>)new LrealPlcMapper();
-
-                case string _:
-                case string[] _:
-                case string[,] _:
-                case string[,,] _:
-                    return (IPlcMapper<T>)new StringPlcMapper();
-
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(T), "Could not determine mapper class for type argument");
-            }
         }
 
         /// <summary>
